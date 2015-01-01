@@ -32,7 +32,7 @@
 #include <JeeLib.h>
 
 // set to 1 to get some more output on the serial port during playback
-#define DEBUG 1
+#define DEBUG 0
 
 // set to 1 to save in MemoryStream right away (this may have timing issues)
 #define IMMEDIATE_SAVE 0
@@ -283,7 +283,7 @@ static void putch(byte c) {
             }
         }
     } else {
-        Serial.print(c);
+        Serial.print((char)c);
         if (mode == RECORDING)
             record(OUTPUT, c);
     }
@@ -649,6 +649,13 @@ void setup() {
     
     mode = mem.isPresent() ? RECORDING : PASS_THROUGH;
     speed = 10; // start of programming slowly, speed up once data gets sent
+
+    // quick blinks after reset
+    byte num = mode == RECORDING ? 4 : 10;
+    for (byte i = 1; i <= num; ++i) {
+        setLed(i & 1);
+        delay(100);
+    }
 }
 
 void loop(void) {
@@ -670,7 +677,7 @@ void loop(void) {
     }
     
     if (mode == RECORDING && getButton()) {
-        Serial.begin(57600); // for debugging
+        //Serial.begin(57600); // for debugging
         Serial.println("\n[isp_capture]");
         showInfo();        
         stream.reset(); // seek to start again
