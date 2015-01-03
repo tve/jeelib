@@ -49,6 +49,19 @@ protected:
     /// @return Arduino analog pin number of a Port's A pin (uint8_t).
     inline uint8_t anaPin() const
         { return 0; }
+#elif defined(__AVR_ATtiny84__)
+	/// @return Arduino digital pin number of a Port's D pin (uint8_t).
+    inline uint8_t digiPin() const
+        { return 12 - 2 * portNum; }
+	/// @return Arduino digital pin number of a Port's A pin (uint8_t).
+    inline uint8_t digiPin2() const
+        { return 11 - 2 * portNum; }
+	/// @return Arduino digital pin number of the I pin on all Ports (uint8_t).
+    static uint8_t digiPin3()
+        { return 3; }
+    /// @return Arduino analog pin number of a Port's A pin (uint8_t).
+    inline uint8_t anaPin() const
+        { return 11 - 2 * portNum; }
 #else
 	/// @return Arduino digital pin number of a Port's D pin (uint8_t).
     inline uint8_t digiPin() const
@@ -406,8 +419,8 @@ public:
     MemoryPlug (PortI2C& port)
         : DeviceI2C (port, 0x50), nextSave (0) {}
 
-    void load(word page, void* buf, byte offset =0, int count =256);
-    void save(word page, const void* buf, byte offset =0, int count =256);
+    void load(word page, byte offset, void* buf, int count);
+    void save(word page, byte offset, const void* buf, int count);
 };
 
 /// A memory stream can save and reload a stream of bytes on a MemoryPlug.
@@ -504,6 +517,19 @@ public:
     word calcLux(byte iGain =0, byte tInt =2) const;
 };
 
+// Interface for the HYT131 thermometer/hygrometer - see http://jeelabs.org/2012/06/30/new-hyt131-sensor/
+class HYT131 : public DeviceI2C {
+public:
+    // Constructor for the HYT131 sensor.
+    HYT131 (PortI2C& port) : DeviceI2C (port, 0x28) {}
+    
+    // Execute a reading; results are in tenths of degrees and percent, respectively
+    // @param temp in which to store the temperature (int, tenths of degrees C)
+    // @param humi in which to store the humidity (int, tenths of percent)
+    // @param delayFun (optional) supply delayFun that takes ms delay as argument, for low-power waiting during reading (e.g. Sleepy::loseSomeTime()). By default, delay() is used
+    void reading (int& temp, int& humi, byte (*delayFun)(word ms) =0);
+};
+
 /// Interface for the Gravity Plug - see http://jeelabs.org/gp
 class GravityPlug : public DeviceI2C {
     /// Data storage for getAxes() and sensitivity()
@@ -522,6 +548,9 @@ public:
     /// Get accelleration data from GravityPlug.
     /// @return An array with 3 integers. (x,y,z) respectively.
     const int* getAxes();
+    /// Read out the temperature (only for BMA150, not the older BMA020)
+    /// @return temp, in half deg C steps, from -30C to +50C (i.e. times 2)
+    char temperature();
 };
 
 /// Interface for the Input Plug - see http://jeelabs.org/ip
@@ -634,8 +663,9 @@ class DHTxx {
   byte pin;
 public:
   DHTxx (byte pinNum);
-  /// Results are returned in tenths of a degree and percent, respectively
-  bool reading (int& temp, int &humi);
+  /// Results are returned in tenths of a degree and percent, respectively.
+  /// Set "precise" to true for the more accurate DHT21 and DHT22 sensors.
+  bool reading (int& temp, int &humi, bool precise =false);
 };
 
 /// Interface for the Color Plug - see http://jeelabs.org/cp
@@ -662,6 +692,7 @@ public:
     
     void setGain(byte gain, byte prescaler);
     
+    // returns four 16-bit values: red, green, blue, and clear intensities
     const word* getData();
     
     const word* chromaCCT();
